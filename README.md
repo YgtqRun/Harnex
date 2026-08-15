@@ -6,6 +6,9 @@
 ![Vue](https://img.shields.io/badge/Vue-3-42b883?style=flat-square)
 ![Rust](https://img.shields.io/badge/Rust-stable-dea584?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078d6?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
+
+中文 | [English](README.en.md)
 
 ## Harnex 是什么？
 
@@ -49,3 +52,9 @@ npm run tauri build   # 打包安装包
 - 遇到问题或想提需求：去 [GitHub Issues](https://github.com/YgtqRun/Harnex/issues) 告诉我们
 
 如果 Harnex 对你有帮助，别忘了点个 Star。
+
+## 许可证
+
+[MIT](LICENSE)
+
+> Harnex 是独立第三方项目，与 DeepSeek 官方无关。
