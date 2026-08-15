@@ -98,8 +98,15 @@ pub fn sync_main_window(app: &AppHandle) {
         placeholder_url(app)
     };
     if let Some(window) = app.get_webview_window("main") {
-        if let Ok(url) = Url::parse(&target) {
-            let _ = window.navigate(url);
+        let Ok(url) = Url::parse(&target) else {
+            return;
+        };
+        // 已在目标地址时跳过导航，避免每 3 秒轮询触发整页重载
+        match window.url() {
+            Ok(current) if current == url => return,
+            _ => {
+                let _ = window.navigate(url);
+            }
         }
     }
 }
