@@ -8,9 +8,17 @@ import StatusCard from "./StatusCard.vue";
 defineProps<{
   status: DshStatus | null;
   config: AppConfig | null;
+  winId: number;
+  zoom: number;
 }>();
 
-const emit = defineEmits<{ changed: []; close: [] }>();
+const emit = defineEmits<{
+  changed: [];
+  close: [];
+  "zoom-in": [];
+  "zoom-out": [];
+  "zoom-reset": [];
+}>();
 </script>
 
 <template>
@@ -31,7 +39,16 @@ const emit = defineEmits<{ changed: []; close: [] }>();
     <div class="body">
       <StatusCard :status="status" :config="config" />
       <ControlButtons :status="status" @changed="emit('changed')" />
-      <CommandBox :work-dir="config?.workDir ?? ''" />
+      <div class="zoom-row">
+        <span class="zoom-label">页面缩放</span>
+        <button class="zoom-btn" title="缩小" @click="emit('zoom-out')">−</button>
+        <span class="zoom-value">{{ Math.round(zoom * 100) }}%</span>
+        <button class="zoom-btn" title="放大" @click="emit('zoom-in')">+</button>
+        <button class="zoom-btn reset" :disabled="zoom === 1" @click="emit('zoom-reset')">
+          重置
+        </button>
+      </div>
+      <CommandBox :win-id="winId" :work-dir="config?.workDir ?? ''" />
       <SettingsPanel :config="config" @saved="emit('changed')" />
     </div>
   </section>
@@ -84,4 +101,52 @@ const emit = defineEmits<{ changed: []; close: [] }>();
   flex-direction: column;
   gap: 12px;
 }
+.zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.zoom-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-right: 2px;
+}
+.zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.zoom-btn:hover:not(:disabled) {
+  background: var(--hover-soft);
+  border-color: var(--border-strong);
+}
+.zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.zoom-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.zoom-btn.reset {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+.zoom-btn.reset:hover:not(:disabled) { color: var(--text); }
 </style>

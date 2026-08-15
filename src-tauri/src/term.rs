@@ -1,7 +1,9 @@
 //! 命令框：一次性命令执行（流式回显）与原生 cmd 拉起。
+//! 每个窗口（winId）有独立的命令会话，事件带 winId 供前端过滤。
 
 use crate::config;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -13,23 +15,18 @@ use std::os::unix::process::CommandExt;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
+#[derive(Default)]
 pub struct TermState {
     pub child: Option<Child>,
     pub run_id: u64,
 }
 
-impl Default for TermState {
-    fn default() -> Self {
-        Self {
-            child: None,
-            run_id: 0,
-        }
-    }
-}
+pub type TermRegistry = Mutex<HashMap<u32, TermState>>;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TermOutput {
+    pub win_id: u32,
     pub run_id: u64,
     pub stream: String,
     pub text: String,
@@ -38,22 +35,24 @@ pub struct TermOutput {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TermExit {
+    pub win_id: u32,
     pub run_id: u64,
     pub code: Option<i32>,
     pub cancelled: bool,
 }
 
-/// 执行一条命令，stdout/stderr 通过 `term-output` 事件流式推送。
-pub fn run_command(app: &AppHandle, command: String) -> Result<u64, String> {
+/// 在指定窗口执行一条命令，stdout/stderr 通过 `term-output` 事件流式推送。
+pub fn run_command(app: &AppHandle, win_id: u32, command: String) -> Result<u64, String> {
     let cmd = command.trim();
     if cmd.is_empty() {
         return Err("命令为空".to_string());
     }
     let wd = config::work_dir(app);
 
-    let state = app.state::<Mutex<TermState>>();
-    let mut state = state.lock().unwrap();
-    if state.child.is_some() {
+    let state = app.state::<TermRegistry>();
+    let mut map = state.lock().unwrap();
+    let entry = map.entry(win_id).or_default();
+    if entry.child.is_some() {
         return Err("已有命令正在运行，请等待完成或先停止".to_string());
     }
 
@@ -80,20 +79,20 @@ pub fn run_command(app: &AppHandle, command: String) -> Result<u64, String> {
     }
 
     let mut child = c.spawn().map_err(|e| format!("执行失败: {e}"))?;
-    let run_id = state.run_id;
-    state.run_id += 1;
+    entry.run_id += 1;
+    let run_id = entry.run_id;
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
-    state.child = Some(child);
-    drop(state);
+    entry.child = Some(child);
+    drop(map);
 
     if let Some(o) = stdout {
-        spawn_term_reader(app.clone(), o, "stdout", run_id);
+        spawn_term_reader(app.clone(), o, "stdout", win_id, run_id);
     }
     if let Some(e) = stderr {
-        spawn_term_reader(app.clone(), e, "stderr", run_id);
+        spawn_term_reader(app.clone(), e, "stderr", win_id, run_id);
     }
-    spawn_term_watcher(app.clone(), run_id);
+    spawn_term_watcher(app.clone(), win_id, run_id);
     Ok(run_id)
 }
 
@@ -101,6 +100,7 @@ fn spawn_term_reader(
     app: AppHandle,
     stream: impl Read + Send + 'static,
     stream_name: &'static str,
+    win_id: u32,
     run_id: u64,
 ) {
     std::thread::spawn(move || {
@@ -116,6 +116,7 @@ fn spawn_term_reader(
             let _ = app.emit(
                 "term-output",
                 TermOutput {
+                    win_id,
                     run_id,
                     stream: stream_name.to_string(),
                     text: line,
@@ -125,21 +126,25 @@ fn spawn_term_reader(
     });
 }
 
-fn spawn_term_watcher(app: AppHandle, run_id: u64) {
+fn spawn_term_watcher(app: AppHandle, win_id: u32, run_id: u64) {
     std::thread::spawn(move || {
         let code = loop {
             {
-                let state = app.state::<Mutex<TermState>>();
-                let mut state = state.lock().unwrap();
-                match state.child.as_mut() {
+                let state = app.state::<TermRegistry>();
+                let mut map = state.lock().unwrap();
+                match map.get_mut(&win_id).and_then(|st| st.child.as_mut()) {
                     Some(child) => match child.try_wait() {
                         Ok(Some(status)) => {
-                            state.child = None;
+                            if let Some(st) = map.get_mut(&win_id) {
+                                st.child = None;
+                            }
                             break status.code();
                         }
                         Ok(None) => {}
                         Err(_) => {
-                            state.child = None;
+                            if let Some(st) = map.get_mut(&win_id) {
+                                st.child = None;
+                            }
                             break None;
                         }
                     },
@@ -151,6 +156,7 @@ fn spawn_term_watcher(app: AppHandle, run_id: u64) {
         let _ = app.emit(
             "term-exit",
             TermExit {
+                win_id,
                 run_id,
                 code,
                 cancelled: code.is_none(),
@@ -174,11 +180,11 @@ fn kill_tree(pid: u32) {
         .status();
 }
 
-pub fn cancel_command(app: &AppHandle) -> Result<(), String> {
+pub fn cancel_command(app: &AppHandle, win_id: u32) -> Result<(), String> {
     let pid = {
-        let state = app.state::<Mutex<TermState>>();
-        let guard = state.lock().unwrap();
-        guard.child.as_ref().map(|c| c.id())
+        let state = app.state::<TermRegistry>();
+        let map = state.lock().unwrap();
+        map.get(&win_id).and_then(|st| st.child.as_ref()).map(|c| c.id())
     };
     if let Some(pid) = pid {
         kill_tree(pid);

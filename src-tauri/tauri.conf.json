@@ -10,19 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "Harnex",
-        "url": "index.html",
-        "width": 1280,
-        "height": 820,
-        "minWidth": 900,
-        "minHeight": 600,
-        "resizable": true,
-        "decorations": false
-      }
-    ],
     "security": {
       "csp": null
     }

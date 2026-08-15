@@ -13,6 +13,7 @@ const form = reactive({
   workDir: "",
   stopOnExit: false,
   dshVersion: "",
+  rememberWindowState: true,
 });
 
 watch(
@@ -24,6 +25,7 @@ watch(
     form.workDir = c.workDir ?? "";
     form.stopOnExit = c.stopOnExit;
     form.dshVersion = c.dshVersion ?? "";
+    form.rememberWindowState = c.rememberWindowState;
   },
   { immediate: true },
 );
@@ -43,6 +45,7 @@ async function save() {
       workDir: form.workDir.trim() || null,
       stopOnExit: form.stopOnExit,
       dshVersion: form.dshVersion.trim() || null,
+      rememberWindowState: form.rememberWindowState,
     });
     emit("saved");
   } catch (e) {
@@ -82,6 +85,10 @@ async function save() {
       <label class="check">
         <input v-model="form.stopOnExit" type="checkbox" />
         <span>退出 Harnex 时停止 DSH</span>
+      </label>
+      <label class="check">
+        <input v-model="form.rememberWindowState" type="checkbox" />
+        <span>记住各窗口的大小和位置</span>
       </label>
       <button class="save" :disabled="saving" @click="save">
         {{ saving ? "保存中…" : "保存" }}

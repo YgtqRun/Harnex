@@ -23,15 +23,18 @@ export interface AppConfig {
   workDir: string | null;
   stopOnExit: boolean;
   dshVersion: string | null;
+  rememberWindowState: boolean;
 }
 
 export interface TermOutput {
+  winId: number;
   runId: number;
   stream: "stdout" | "stderr";
   text: string;
 }
 
 export interface TermExit {
+  winId: number;
   runId: number;
   code: number | null;
   cancelled: boolean;
@@ -54,12 +57,14 @@ export const api = {
   stop: () => invoke<DshStatus>("dsh_stop"),
   restart: () => invoke<DshStatus>("dsh_restart"),
   getDshLog: () => invoke<string[]>("get_dsh_log"),
-  termRun: (command: string) => invoke<number>("term_run", { command }),
-  termCancel: () => invoke<void>("term_cancel"),
+  termRun: (winId: number, command: string) =>
+    invoke<number>("term_run", { winId, command }),
+  termCancel: (winId: number) => invoke<void>("term_cancel", { winId }),
   openNativeCmd: (command?: string) =>
     invoke<void>("open_native_cmd", { command: command ?? null }),
   getWorkDir: () => invoke<string>("get_work_dir"),
   setWorkDir: (path: string) => invoke<AppConfig>("set_work_dir", { path }),
+  newWindow: () => invoke<number>("new_window"),
 };
 
 export function onStatus(cb: (s: DshStatus) => void): Promise<UnlistenFn> {
@@ -80,10 +85,6 @@ export function onTermExit(cb: (t: TermExit) => void): Promise<UnlistenFn> {
 
 export function onDshLog(cb: (l: DshLog) => void): Promise<UnlistenFn> {
   return listen<DshLog>("dsh-log", (e) => cb(e.payload));
-}
-
-export function onToggleControlPanel(cb: () => void): Promise<UnlistenFn> {
-  return listen("toggle-control-panel", () => cb());
 }
 
 export function onDshTheme(cb: (t: DshTheme) => void): Promise<UnlistenFn> {

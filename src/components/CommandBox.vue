@@ -2,7 +2,7 @@
 import { nextTick, onMounted, onUnmounted, ref } from "vue";
 import { api, onTermExit, onTermOutput } from "../lib/ipc";
 
-defineProps<{ workDir: string }>();
+const props = defineProps<{ winId: number; workDir: string }>();
 
 interface OutLine {
   stream: "out" | "err" | "info";
@@ -37,7 +37,7 @@ async function run() {
   lastCode.value = null;
   push("info", `> ${cmd}`);
   try {
-    await api.termRun(cmd);
+    await api.termRun(props.winId, cmd);
     const list = recent.value.filter((c) => c !== cmd);
     list.unshift(cmd);
     recent.value = list.slice(0, 20);
@@ -49,7 +49,7 @@ async function run() {
 }
 
 function stop() {
-  api.termCancel().catch(() => {});
+  api.termCancel(props.winId).catch(() => {});
 }
 
 function openNative() {
@@ -91,11 +91,14 @@ let unlisteners: Array<() => void> = [];
 onMounted(async () => {
   unlisteners.push(
     await onTermOutput((t) =>
-      push(t.stream === "stderr" ? "err" : "out", t.text),
+      t.winId === props.winId
+        ? push(t.stream === "stderr" ? "err" : "out", t.text)
+        : undefined,
     ),
   );
   unlisteners.push(
     await onTermExit((t) => {
+      if (t.winId !== props.winId) return;
       running.value = false;
       lastCode.value = t.cancelled ? 0 : (t.code ?? 0);
       push("info", t.cancelled ? "（已取消）" : `[退出码 ${t.code ?? 0}]`);

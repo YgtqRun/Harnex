@@ -6,7 +6,6 @@ import {
   onConfigChanged,
   onDshTheme,
   onStatus,
-  onToggleControlPanel,
   type AppConfig,
   type DshStatus,
 } from "./lib/ipc";
@@ -18,9 +17,49 @@ const config = ref<AppConfig | null>(null);
 const panelOpen = ref(false);
 const iframeSrc = ref("");
 
+const winId = Number(new URLSearchParams(window.location.search).get("id")) || 0;
 const running = computed(() => status.value?.kind === "running");
 const appWindow = getCurrentWindow();
 const isMaximized = ref(false);
+const zoom = ref<number>(
+  Number(localStorage.getItem(`harnex.zoom.${winId}`)) || 1,
+);
+const zoomStyle = computed(() => ({ "--zoom": String(zoom.value) }));
+
+function clampZoom(v: number) {
+  return Math.min(2, Math.max(0.5, Math.round(v * 10) / 10));
+}
+
+function zoomIn() {
+  zoom.value = clampZoom(zoom.value + 0.1);
+}
+
+function zoomOut() {
+  zoom.value = clampZoom(zoom.value - 0.1);
+}
+
+function zoomReset() {
+  zoom.value = 1;
+}
+
+watch(zoom, (v) => {
+  localStorage.setItem(`harnex.zoom.${winId}`, String(v));
+});
+
+function onKeydown(e: KeyboardEvent) {
+  if (!e.ctrlKey) return;
+  if (e.key === "=" || e.key === "+") {
+    e.preventDefault();
+    zoomIn();
+  } else if (e.key === "-") {
+    e.preventDefault();
+    zoomOut();
+  } else if (e.key === "0") {
+    e.preventDefault();
+    zoomReset();
+  }
+}
+
 const darkMedia = window.matchMedia("(prefers-color-scheme: dark)");
 const themePreference = ref<"system" | "light" | "dark">("system");
 
@@ -48,20 +87,10 @@ function maximize() {
   void appWindow.toggleMaximize().then(refreshMaximized);
 }
 
-function hideWindow() {
-  void appWindow.hide();
+function closeWindow() {
+  void appWindow.close();
 }
 
-const STATE_LABELS: Record<string, string> = {
-  running: "运行中",
-  starting: "启动中",
-  stopped: "已停止",
-  portBusy: "端口被占",
-  error: "异常",
-};
-const stateLabel = computed(
-  () => STATE_LABELS[status.value?.kind ?? "stopped"] ?? "已停止",
-);
 const stateCls = computed(
   () =>
     ({
@@ -102,6 +131,7 @@ onMounted(async () => {
   }
   await refresh();
   await refreshMaximized();
+  window.addEventListener("keydown", onKeydown);
   timer = window.setInterval(refresh, 3000);
   unlisteners.push(
     await onStatus((s) => {
@@ -113,7 +143,6 @@ onMounted(async () => {
       config.value = c;
     }),
   );
-  unlisteners.push(await onToggleControlPanel(() => (panelOpen.value = !panelOpen.value)));
   unlisteners.push(await appWindow.onResized(refreshMaximized));
   unlisteners.push(
     await onDshTheme((t) => {
@@ -130,6 +159,7 @@ onUnmounted(() => {
   if (timer) clearInterval(timer);
   unlisteners.forEach((u) => u());
   darkMedia.removeEventListener("change", applyTheme);
+  window.removeEventListener("keydown", onKeydown);
 });
 </script>
 
@@ -137,11 +167,13 @@ onUnmounted(() => {
   <div class="shell">
     <header class="toolbar" data-tauri-drag-region>
       <div class="left" data-tauri-drag-region>
-        <span class="brand-dot" :class="stateCls"></span>
         <span class="brand">Harnex</span>
-        <span class="state">{{ stateLabel }}</span>
       </div>
       <div class="right">
+        <button class="tool-btn" title="新建窗口" @click="api.newWindow()">
+          <span class="plus">＋</span>
+          <span>新建窗口</span>
+        </button>
         <button
           class="tool-btn"
           :class="{ active: panelOpen }"
@@ -158,18 +190,20 @@ onUnmounted(() => {
         <button class="cap-btn" title="最大化 / 还原" @click="maximize">
           <CaptionIcon :name="isMaximized ? 'restore' : 'max'" />
         </button>
-        <button class="cap-btn close" title="隐藏窗口" @click="hideWindow">
+        <button class="cap-btn close" title="关闭窗口" @click="closeWindow">
           <CaptionIcon name="close" />
         </button>
       </div>
     </header>
     <div class="stage">
-      <iframe
-        v-if="running && iframeSrc"
-        :src="iframeSrc"
-        class="dsh-frame"
-        allow="clipboard-read; clipboard-write"
-      ></iframe>
+      <div v-if="running && iframeSrc" class="frame">
+        <iframe
+          :src="iframeSrc"
+          class="dsh-frame"
+          :style="zoomStyle"
+          allow="clipboard-read; clipboard-write"
+        ></iframe>
+      </div>
       <div v-else class="placeholder">
         <span class="dot"></span>
         <h1>Harnex</h1>
@@ -179,8 +213,13 @@ onUnmounted(() => {
         v-if="panelOpen"
         :status="status"
         :config="config"
+        :win-id="winId"
+        :zoom="zoom"
         @changed="refresh"
         @close="panelOpen = false"
+        @zoom-in="zoomIn"
+        @zoom-out="zoomOut"
+        @zoom-reset="zoomReset"
       />
     </div>
   </div>
@@ -214,24 +253,6 @@ onUnmounted(() => {
   font-size: 13px;
   letter-spacing: 0.2px;
 }
-.state {
-  color: var(--muted);
-  font-weight: 400;
-  font-size: 12px;
-}
-.brand-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex: none;
-  box-shadow: none;
-}
-.brand-dot.ok { background: var(--ok); }
-.brand-dot.busy { background: var(--warn); animation: blink 1s infinite; }
-.brand-dot.off { background: #4b4f57; }
-.brand-dot.warn { background: var(--warn); }
-.brand-dot.err { background: var(--err); }
-@keyframes blink { 50% { opacity: 0.25; } }
 .right { display: flex; gap: 4px; }
 .tool-btn {
   display: flex;
@@ -262,6 +283,11 @@ onUnmounted(() => {
 .tool-dot.off { background: var(--dot-off); }
 .tool-dot.warn { background: var(--warn); }
 .tool-dot.err { background: var(--err); }
+@keyframes blink { 50% { opacity: 0.25; } }
+.plus {
+  font-size: 13px;
+  line-height: 1;
+}
 .sep {
   width: 1px;
   height: 16px;
@@ -290,11 +316,16 @@ onUnmounted(() => {
   position: relative;
   min-height: 0;
 }
-.dsh-frame {
+.frame {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  overflow: hidden;
+}
+.dsh-frame {
+  width: calc(100% / var(--zoom, 1));
+  height: calc(100% / var(--zoom, 1));
+  transform: scale(var(--zoom, 1));
+  transform-origin: 0 0;
   border: none;
   background: var(--iframe-bg);
 }
