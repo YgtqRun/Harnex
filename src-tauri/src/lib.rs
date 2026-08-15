@@ -1,8 +1,8 @@
 mod commands;
 mod config;
+mod prefs;
 mod process;
 mod term;
-mod theme;
 
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -11,12 +11,42 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Listener, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent,
 };
 
 use config::WindowState;
 use process::DshState;
 use term::TermRegistry;
+
+/// 托盘菜单里需要动态更新的项。
+struct TrayItems {
+    status: MenuItem<tauri::Wry>,
+    start: MenuItem<tauri::Wry>,
+    stop: MenuItem<tauri::Wry>,
+}
+
+fn status_label(kind: &str) -> &'static str {
+    match kind {
+        "running" => "运行中",
+        "starting" => "启动中…",
+        "stopped" => "已停止",
+        "portBusy" => "端口被占",
+        "error" => "异常",
+        _ => "未知",
+    }
+}
+
+/// 根据 DSH 状态刷新托盘菜单：状态项文字 + 启动/停止置灰。
+fn update_tray_status(app: &AppHandle, status: &process::DshStatus) {
+    let items = app.state::<Mutex<TrayItems>>();
+    let items = items.lock().unwrap();
+    let _ = items
+        .status
+        .set_text(format!("{} · {}", status_label(&status.kind), status.port));
+    let running = status.kind == "running" || status.kind == "starting";
+    let _ = items.start.set_enabled(!running);
+    let _ = items.stop.set_enabled(status.kind != "stopped");
+}
 
 /// 已打开窗口的槽位管理：新窗口复用最小可用 id，位置记忆按 id 保存。
 #[derive(Default)]
@@ -138,7 +168,9 @@ fn save_window_state(app: &AppHandle, id: u32, window: &tauri::Window) {
     );
 }
 
-fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+fn build_tray(app: &AppHandle) -> tauri::Result<TrayItems> {
+    let status_item =
+        MenuItem::with_id(app, "dsh-status", "已停止 · 3080", false, None::<&str>)?;
     let new_item = MenuItem::with_id(app, "new-window", "新建窗口", true, None::<&str>)?;
     let start_item = MenuItem::with_id(app, "start-dsh", "启动 DSH", true, None::<&str>)?;
     let stop_item = MenuItem::with_id(app, "stop-dsh", "停止 DSH", true, None::<&str>)?;
@@ -146,8 +178,9 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
-            &new_item,
+            &status_item,
             &PredefinedMenuItem::separator(app)?,
+            &new_item,
             &start_item,
             &stop_item,
             &PredefinedMenuItem::separator(app)?,
@@ -176,7 +209,11 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             _ => {}
         })
         .build(app)?;
-    Ok(())
+    Ok(TrayItems {
+        status: status_item,
+        start: start_item,
+        stop: stop_item,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -200,6 +237,7 @@ pub fn run() {
             commands::get_work_dir,
             commands::set_work_dir,
             commands::new_window,
+            commands::open_url,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { .. } = event {
@@ -209,12 +247,21 @@ pub fn run() {
                     save_window_state(&app, id, window);
                     let state = app.state::<Mutex<WindowRegistry>>();
                     state.lock().unwrap().free(id);
-                    // 不阻止关闭；DSH 是共享实例，关窗不影响服务
                 }
             }
         })
         .setup(|app| {
-            build_tray(&app.handle())?;
+            let tray_items = build_tray(&app.handle())?;
+            app.manage(Mutex::new(tray_items));
+
+            // 状态变化 → 刷新托盘菜单
+            let handle = app.handle().clone();
+            app.handle().listen("dsh-status", move |event| {
+                if let Ok(status) = serde_json::from_str::<process::DshStatus>(event.payload()) {
+                    update_tray_status(&handle, &status);
+                }
+            });
+
             let state = app.state::<Mutex<WindowRegistry>>();
             let id = state.lock().unwrap().alloc();
             create_window(&app.handle(), id, None)?;
@@ -225,7 +272,7 @@ pub fn run() {
                 std::thread::sleep(Duration::from_millis(800));
                 let _ = process::start_dsh(&app2);
             });
-            theme::spawn_theme_watcher(app.handle().clone());
+            prefs::spawn_prefs_watcher(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())

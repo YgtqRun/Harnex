@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { api, type DshStatus } from "../lib/ipc";
+import { t } from "../lib/i18n";
 
 const props = defineProps<{ status: DshStatus | null }>();
 const emit = defineEmits<{ changed: [] }>();
@@ -30,13 +31,13 @@ async function act(action: "start" | "stop" | "restart") {
 <template>
   <div class="row">
     <button class="btn ghost" :disabled="!canStart || !!pending" @click="act('start')">
-      {{ pending === "start" ? "启动中…" : "启动" }}
+      {{ pending === "start" ? t("startingEllipsis") : t("start") }}
     </button>
     <button class="btn primary" :disabled="!canRestart || !!pending" @click="act('restart')">
-      {{ pending === "restart" ? "重启中…" : "重启" }}
+      {{ pending === "restart" ? t("restartingEllipsis") : t("restart") }}
     </button>
     <button class="btn ghost danger" :disabled="!canStop || !!pending" @click="act('stop')">
-      {{ pending === "stop" ? "关闭中…" : "停止" }}
+      {{ pending === "stop" ? t("stoppingEllipsis") : t("stop") }}
     </button>
   </div>
 </template>

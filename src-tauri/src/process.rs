@@ -1,7 +1,7 @@
 //! DSH 生命周期管理：启动 / 停止 / 重启 / 状态探测 / 日志流。
 
 use crate::config::{self, AppConfig};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::process::{Child, Command, Stdio};
@@ -24,7 +24,7 @@ pub const STATUS_ERROR: &str = "error";
 const DSH_MARKER: &str = "__DSH_BOOT__";
 const LOG_CAP: usize = 300;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DshStatus {
     pub kind: String,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref } from "vue";
 import { api, onTermExit, onTermOutput } from "../lib/ipc";
+import { t } from "../lib/i18n";
 
 const props = defineProps<{ winId: number; workDir: string }>();
 
@@ -90,18 +91,21 @@ function clearOut() {
 let unlisteners: Array<() => void> = [];
 onMounted(async () => {
   unlisteners.push(
-    await onTermOutput((t) =>
-      t.winId === props.winId
-        ? push(t.stream === "stderr" ? "err" : "out", t.text)
+    await onTermOutput((ev) =>
+      ev.winId === props.winId
+        ? push(ev.stream === "stderr" ? "err" : "out", ev.text)
         : undefined,
     ),
   );
   unlisteners.push(
-    await onTermExit((t) => {
-      if (t.winId !== props.winId) return;
+    await onTermExit((ev) => {
+      if (ev.winId !== props.winId) return;
       running.value = false;
-      lastCode.value = t.cancelled ? 0 : (t.code ?? 0);
-      push("info", t.cancelled ? "（已取消）" : `[退出码 ${t.code ?? 0}]`);
+      lastCode.value = ev.cancelled ? 0 : (ev.code ?? 0);
+      push(
+        "info",
+        ev.cancelled ? t("cancelled") : `[${t("exitCode")} ${ev.code ?? 0}]`,
+      );
     }),
   );
 });
@@ -114,7 +118,7 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
       <input
         v-model="input"
         class="cmd-input"
-        placeholder="输入命令，如 npx -y @deepseek-ai/dsh plugin --profile web add <pkg>"
+        :placeholder="t('cmdPlaceholder')"
         :disabled="running"
         @keydown="onKey"
         @keydown.enter.prevent="run"
@@ -122,9 +126,9 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
         @blur="blurSoon"
       />
       <button class="run" :disabled="running" @click="run">
-        {{ running ? "执行中…" : "运行" }}
+        {{ running ? t("runningEllipsis") : t("run") }}
       </button>
-      <button v-if="running" class="stop" @click="stop">停止</button>
+      <button v-if="running" class="stop" @click="stop">{{ t("stopCmd") }}</button>
     </div>
     <div v-if="hintsOpen && recent.length" class="hints">
       <div
@@ -140,9 +144,11 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
 <template v-for="(line, i) in output" :key="i"><span :class="line.stream">{{ line.text }}</span>
 </template></pre>
     <div class="foot">
-      <button class="link" @click="openNative">原生 cmd</button>
-      <span class="code">{{ lastCode !== null ? `退出码 ${lastCode}` : "—" }}</span>
-      <button class="link" @click="clearOut">清空</button>
+      <button class="link" @click="openNative">{{ t("nativeCmd") }}</button>
+      <span class="code">
+        {{ lastCode !== null ? `${t("exitCode")} ${lastCode}` : "—" }}
+      </span>
+      <button class="link" @click="clearOut">{{ t("clear") }}</button>
     </div>
   </div>
 </template>

@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { AppConfig, DshStatus } from "../lib/ipc";
+import { api } from "../lib/ipc";
+import { getVersion } from "@tauri-apps/api/app";
 import CommandBox from "./CommandBox.vue";
 import ControlButtons from "./ControlButtons.vue";
 import SettingsPanel from "./SettingsPanel.vue";
 import StatusCard from "./StatusCard.vue";
+import { t } from "../lib/i18n";
 
 defineProps<{
   status: DshStatus | null;
@@ -19,13 +23,32 @@ const emit = defineEmits<{
   "zoom-out": [];
   "zoom-reset": [];
 }>();
+
+const aboutOpen = ref(false);
+const version = ref("");
+const GITHUB_URL = "https://github.com/YgtqRun/Harnex";
+
+async function toggleAbout() {
+  aboutOpen.value = !aboutOpen.value;
+  if (aboutOpen.value && !version.value) {
+    try {
+      version.value = await getVersion();
+    } catch {
+      version.value = "0.1.0";
+    }
+  }
+}
+
+function openGithub() {
+  api.openUrl(GITHUB_URL).catch((e) => alert(String(e)));
+}
 </script>
 
 <template>
   <section class="panel">
     <header class="head">
-      <span class="title">Harnex 控制台</span>
-      <button class="close" title="收起" @click="emit('close')">
+      <span class="title">Harnex {{ t("console") }}</span>
+      <button class="close" :title="t('console')" @click="emit('close')">
         <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
           <path
             d="M3.2 3.2l9.6 9.6M12.8 3.2L3.2 12.8"
@@ -40,16 +63,32 @@ const emit = defineEmits<{
       <StatusCard :status="status" :config="config" />
       <ControlButtons :status="status" @changed="emit('changed')" />
       <div class="zoom-row">
-        <span class="zoom-label">页面缩放</span>
-        <button class="zoom-btn" title="缩小" @click="emit('zoom-out')">−</button>
+        <span class="zoom-label">{{ t("zoom") }}</span>
+        <button class="zoom-btn" :title="t('zoomOut')" @click="emit('zoom-out')">−</button>
         <span class="zoom-value">{{ Math.round(zoom * 100) }}%</span>
-        <button class="zoom-btn" title="放大" @click="emit('zoom-in')">+</button>
+        <button class="zoom-btn" :title="t('zoomIn')" @click="emit('zoom-in')">+</button>
         <button class="zoom-btn reset" :disabled="zoom === 1" @click="emit('zoom-reset')">
-          重置
+          {{ t("reset") }}
         </button>
       </div>
       <CommandBox :win-id="winId" :work-dir="config?.workDir ?? ''" />
       <SettingsPanel :config="config" @saved="emit('changed')" />
+      <div class="info-section">
+        <button class="toggle" @click="toggleAbout">
+          <span>{{ t("about") }}</span>
+          <span class="chevron" :class="{ open: aboutOpen }">▾</span>
+        </button>
+        <div v-if="aboutOpen" class="info-grid">
+          <div class="info-row">
+            <span class="k">{{ t("harnexVersion") }}</span>
+            <span class="v">{{ version }}</span>
+          </div>
+          <div class="info-row">
+            <span class="k">{{ t("github") }}</span>
+            <button class="gh" @click="openGithub">{{ t("githubOpen") }} ↗</button>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </template>
@@ -146,4 +185,55 @@ const emit = defineEmits<{
   color: var(--muted);
 }
 .zoom-btn.reset:hover:not(:disabled) { color: var(--text); }
+.info-section {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+.toggle:hover { color: var(--text); }
+.chevron {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.chevron.open { transform: rotate(180deg); }
+.info-grid {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.k { color: var(--muted); }
+.v {
+  color: var(--text);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+.gh:hover { text-decoration: underline; }
 </style>

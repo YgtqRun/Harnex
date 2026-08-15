@@ -11,6 +11,7 @@ import {
 } from "./lib/ipc";
 import CaptionIcon from "./components/CaptionIcon.vue";
 import ControlPanel from "./components/ControlPanel.vue";
+import { applyLocale, onDshLocale, t } from "./lib/i18n";
 
 const status = ref<DshStatus | null>(null);
 const config = ref<AppConfig | null>(null);
@@ -144,6 +145,7 @@ onMounted(async () => {
     }),
   );
   unlisteners.push(await appWindow.onResized(refreshMaximized));
+  unlisteners.push(await onDshLocale((pref) => applyLocale(pref)));
   unlisteners.push(
     await onDshTheme((t) => {
       if (["system", "light", "dark"].includes(t.preference)) {
@@ -166,28 +168,29 @@ onUnmounted(() => {
 <template>
   <div class="shell">
     <header class="topbar" data-tauri-drag-region>
+      <span class="brand">Harnex</span>
       <div class="bar-right">
-        <button class="f-btn" title="新建窗口" @click="api.newWindow()">
+        <button class="f-btn" :title="t('newWindow')" @click="api.newWindow()">
           <span class="plus">＋</span>
-          <span>新建窗口</span>
+          <span>{{ t("newWindow") }}</span>
         </button>
         <button
           class="f-btn"
           :class="{ active: panelOpen }"
           @click="panelOpen = !panelOpen"
-          title="控制台"
+          :title="t('console')"
         >
           <span class="tool-dot" :class="stateCls"></span>
-          <span>控制台</span>
+          <span>{{ t("console") }}</span>
         </button>
         <span class="sep"></span>
-        <button class="cap-btn" title="最小化" @click="minimize">
+        <button class="cap-btn" :title="t('minimize')" @click="minimize">
           <CaptionIcon name="min" />
         </button>
-        <button class="cap-btn" title="最大化 / 还原" @click="maximize">
+        <button class="cap-btn" :title="t('maximize')" @click="maximize">
           <CaptionIcon :name="isMaximized ? 'restore' : 'max'" />
         </button>
-        <button class="cap-btn close" title="关闭窗口" @click="closeWindow">
+        <button class="cap-btn close" :title="t('closeWindow')" @click="closeWindow">
           <CaptionIcon name="close" />
         </button>
       </div>
@@ -204,8 +207,9 @@ onUnmounted(() => {
       <div v-else class="placeholder">
         <span class="dot"></span>
         <h1>Harnex</h1>
-        <p>正在等待 DeepSeek Harness 启动…</p>
+        <p>{{ t("waiting") }}</p>
       </div>
+      <div v-if="panelOpen" class="backdrop" @click="panelOpen = false"></div>
       <ControlPanel
         v-if="panelOpen"
         :status="status"
@@ -234,11 +238,17 @@ onUnmounted(() => {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 0 8px 0 12px;
+  justify-content: space-between;
+  padding: 0 8px 0 14px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   user-select: none;
+}
+.brand {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text);
 }
 .bar-right {
   display: flex;
@@ -311,6 +321,11 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   overflow: hidden;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
 }
 .dsh-frame {
   width: calc(100% / var(--zoom, 1));

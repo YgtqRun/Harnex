@@ -1,11 +1,10 @@
-use tauri::{AppHandle, Emitter};
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::config::{self, AppConfig};
 use crate::WindowRegistry;
 use crate::process::{self, DshStatus};
 use crate::term;
-use std::sync::Mutex;
-use tauri::Manager;
 
 #[tauri::command]
 pub fn get_config(app: AppHandle) -> AppConfig {
@@ -82,12 +81,46 @@ pub fn set_work_dir(app: AppHandle, path: String) -> Result<AppConfig, String> {
 pub fn new_window(app: AppHandle, window: tauri::WebviewWindow) -> Result<u32, String> {
     let state = app.state::<Mutex<WindowRegistry>>();
     let id = state.lock().unwrap().alloc();
-    let inherit = window
-        .inner_size()
-        .ok()
-        .zip(window.outer_position().ok())
-        .map(|(s, p)| (p.x, p.y, s.width, s.height));
+    // 只有普通 Harnex 窗口作为调用方时才继承尺寸；托盘弹窗等小窗不参与
+    let inherit = if window.label().starts_with("harnex-") {
+        window
+            .inner_size()
+            .ok()
+            .zip(window.outer_position().ok())
+            .map(|(s, p)| (p.x, p.y, s.width, s.height))
+    } else {
+        None
+    };
     let app2 = app.clone();
     crate::spawn_window_creation(app2, id, inherit);
     Ok(id)
+}
+
+/// 退出 Harnex（触发退出清理：保存窗口状态、按配置停止 DSH）。
+
+/// 用系统默认浏览器打开外部链接。
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|e| format!("打开链接失败: {e}"))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("打开链接失败: {e}"))?;
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("打开链接失败: {e}"))?;
+    }
+    Ok(())
 }

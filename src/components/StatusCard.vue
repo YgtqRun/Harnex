@@ -1,23 +1,24 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
 import { api, type AppConfig, type DshStatus } from "../lib/ipc";
+import { formatUptime, t } from "../lib/i18n";
 
 const props = defineProps<{
   status: DshStatus | null;
   config: AppConfig | null;
 }>();
 
-const LABELS: Record<string, string> = {
-  running: "运行中",
-  starting: "启动中",
-  stopped: "已停止",
-  portBusy: "端口被占",
-  error: "异常",
-};
-
-const label = computed(
-  () => LABELS[props.status?.kind ?? "stopped"] ?? "已停止",
-);
+const label = computed(() => {
+  const key =
+    ({
+      running: "running",
+      starting: "starting",
+      stopped: "stopped",
+      portBusy: "portBusy",
+      error: "error",
+    })[props.status?.kind ?? "stopped"] ?? "stopped";
+  return t(key);
+});
 const cls = computed(
   () =>
     ({
@@ -42,7 +43,7 @@ watch(
     if (v) {
       const update = () => {
         const secs = Math.max(0, Math.floor((Date.now() - v) / 1000));
-        uptime.value = `${Math.floor(secs / 60)}分${secs % 60}秒`;
+        uptime.value = formatUptime(secs);
       };
       update();
       uptimeTimer = window.setInterval(update, 1000);
@@ -79,19 +80,23 @@ onUnmounted(() => {
     <div class="status-main">
       <span class="dot" :class="cls"></span>
       <span class="name">{{ label }}</span>
-      <span v-if="status?.message" class="msg" :class="{ warn: status?.kind === 'portBusy' || status?.kind === 'error' }">
+      <span
+        v-if="status?.message"
+        class="msg"
+        :class="{ warn: status?.kind === 'portBusy' || status?.kind === 'error' }"
+      >
         {{ status.message }}
       </span>
     </div>
     <div class="meta">
       <span v-if="uptime" class="meta-item">{{ uptime }}</span>
-      <span class="meta-item">端口 {{ status?.port ?? config?.port ?? 3080 }}</span>
-      <span v-if="status?.pid" class="meta-item">PID {{ status.pid }}</span>
-      <button class="link" @click="toggleLog">{{ logOpen ? "收起日志" : "日志" }}</button>
+      <span class="meta-item">{{ t("port") }} {{ status?.port ?? config?.port ?? 3080 }}</span>
+      <span v-if="status?.pid" class="meta-item">{{ t("pid") }} {{ status.pid }}</span>
+      <button class="link" @click="toggleLog">{{ t(logOpen ? "hideLog" : "log") }}</button>
     </div>
     <div v-if="logOpen" class="log">
       <div v-for="(line, i) in logLines" :key="i" class="log-line">{{ line }}</div>
-      <div v-if="logLines.length === 0" class="log-empty">暂无日志</div>
+      <div v-if="logLines.length === 0" class="log-empty">{{ t("noLog") }}</div>
     </div>
   </div>
 </template>

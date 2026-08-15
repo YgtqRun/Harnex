@@ -65,6 +65,7 @@ export const api = {
   getWorkDir: () => invoke<string>("get_work_dir"),
   setWorkDir: (path: string) => invoke<AppConfig>("set_work_dir", { path }),
   newWindow: () => invoke<number>("new_window"),
+  openUrl: (url: string) => invoke<void>("open_url", { url }),
 };
 
 export function onStatus(cb: (s: DshStatus) => void): Promise<UnlistenFn> {

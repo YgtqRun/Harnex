@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import { api, type AppConfig } from "../lib/ipc";
+import { t } from "../lib/i18n";
 
 const props = defineProps<{ config: AppConfig | null }>();
 const emit = defineEmits<{ saved: [] }>();
@@ -59,39 +60,39 @@ async function save() {
 <template>
   <div class="settings">
     <button class="toggle" @click="open = !open">
-      <span>{{ open ? "收起设置" : "设置" }}</span>
+      <span>{{ t(open ? "collapseSettings" : "settings") }}</span>
       <span class="chevron" :class="{ open }">▾</span>
     </button>
     <div v-if="open" class="form">
       <label class="field">
-        <span>DSH 端口</span>
+        <span>{{ t("dshPort") }}</span>
         <input v-model.number="form.port" type="number" min="1" max="65535" />
       </label>
       <label class="field">
-        <span>命令覆盖（留空自动探测）</span>
+        <span>{{ t("cmdOverride") }}</span>
         <input v-model="form.dshCommand" placeholder="如 dsh web --port 3080" />
       </label>
       <label class="field">
-        <span>共享工作目录</span>
+        <span>{{ t("workDir") }}</span>
         <div class="dir-row">
           <input v-model="form.workDir" placeholder="默认用户主目录" />
-          <button class="pick" @click="pickDir">选择</button>
+          <button class="pick" @click="pickDir">{{ t("pick") }}</button>
         </div>
       </label>
       <label class="field">
-        <span>DSH 版本锁定（npx 路径）</span>
+        <span>{{ t("dshVersion") }}</span>
         <input v-model="form.dshVersion" placeholder="如 0.1.0-rc.6" />
       </label>
       <label class="check">
         <input v-model="form.stopOnExit" type="checkbox" />
-        <span>退出 Harnex 时停止 DSH</span>
+        <span>{{ t("stopOnExit") }}</span>
       </label>
       <label class="check">
         <input v-model="form.rememberWindowState" type="checkbox" />
-        <span>记住各窗口的大小和位置</span>
+        <span>{{ t("rememberWindow") }}</span>
       </label>
       <button class="save" :disabled="saving" @click="save">
-        {{ saving ? "保存中…" : "保存" }}
+        {{ saving ? t("saving") : t("save") }}
       </button>
     </div>
   </div>
