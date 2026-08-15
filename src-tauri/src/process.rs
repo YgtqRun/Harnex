@@ -125,10 +125,10 @@ pub fn probe(port: u16, timeout: Duration) -> Probe {
 /// 通过 netstat 找到监听端口的进程 PID（Windows）。
 #[cfg(windows)]
 pub fn listening_pid(port: u16) -> Option<u32> {
-    let out = Command::new("netstat")
-        .args(["-ano", "-p", "tcp"])
-        .output()
-        .ok()?;
+    let mut cmd = Command::new("netstat");
+    cmd.args(["-ano", "-p", "tcp"]);
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    let out = cmd.output().ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
     let needle = format!(":{port}");
     for line in text.lines() {
@@ -287,9 +287,10 @@ fn build_shell_command(command_line: &str) -> Command {
 
 #[cfg(windows)]
 fn global_dsh_exists() -> bool {
-    Command::new("where.exe")
-        .arg("dsh")
-        .output()
+    let mut cmd = Command::new("where.exe");
+    cmd.arg("dsh");
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd.output()
         .map(|o| o.status.success())
         .unwrap_or(false)
 }
@@ -450,9 +451,10 @@ pub fn start_dsh(app: &AppHandle) -> Result<DshStatus, String> {
 
 #[cfg(windows)]
 fn kill_tree(pid: u32) {
-    let _ = Command::new("taskkill")
-        .args(["/F", "/T", "/PID", &pid.to_string()])
-        .status();
+    let mut cmd = Command::new("taskkill");
+    cmd.args(["/F", "/T", "/PID", &pid.to_string()]);
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    let _ = cmd.status();
 }
 
 #[cfg(not(windows))]

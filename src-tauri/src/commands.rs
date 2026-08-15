@@ -6,6 +6,9 @@ use crate::WindowRegistry;
 use crate::process::{self, DshStatus};
 use crate::term;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 #[tauri::command]
 pub fn get_config(app: AppHandle) -> AppConfig {
     config::load(&app)
@@ -103,10 +106,10 @@ pub fn new_window(app: AppHandle, window: tauri::WebviewWindow) -> Result<u32, S
 pub fn open_url(url: String) -> Result<(), String> {
     #[cfg(windows)]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
-            .spawn()
-            .map_err(|e| format!("打开链接失败: {e}"))?;
+        let mut cmd = std::process::Command::new("cmd");
+        cmd.args(["/C", "start", "", &url]);
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        cmd.spawn().map_err(|e| format!("打开链接失败: {e}"))?;
     }
     #[cfg(target_os = "macos")]
     {

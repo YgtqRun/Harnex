@@ -167,9 +167,10 @@ fn spawn_term_watcher(app: AppHandle, win_id: u32, run_id: u64) {
 
 #[cfg(windows)]
 fn kill_tree(pid: u32) {
-    let _ = Command::new("taskkill")
-        .args(["/F", "/T", "/PID", &pid.to_string()])
-        .status();
+    let mut cmd = Command::new("taskkill");
+    cmd.args(["/F", "/T", "/PID", &pid.to_string()]);
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    let _ = cmd.status();
 }
 
 #[cfg(not(windows))]
