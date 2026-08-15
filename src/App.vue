@@ -165,17 +165,14 @@ onUnmounted(() => {
 
 <template>
   <div class="shell">
-    <header class="toolbar" data-tauri-drag-region>
-      <div class="left" data-tauri-drag-region>
-        <span class="brand">Harnex</span>
-      </div>
-      <div class="right">
-        <button class="tool-btn" title="新建窗口" @click="api.newWindow()">
+    <header class="topbar" data-tauri-drag-region>
+      <div class="bar-right">
+        <button class="f-btn" title="新建窗口" @click="api.newWindow()">
           <span class="plus">＋</span>
           <span>新建窗口</span>
         </button>
         <button
-          class="tool-btn"
+          class="f-btn"
           :class="{ active: panelOpen }"
           @click="panelOpen = !panelOpen"
           title="控制台"
@@ -232,29 +229,28 @@ onUnmounted(() => {
   flex-direction: column;
   background: var(--bg);
 }
-.toolbar {
-  height: 44px;
+.topbar {
+  height: 36px;
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 6px 0 14px;
-  background: var(--panel);
+  justify-content: flex-end;
+  padding: 0 8px 0 12px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   user-select: none;
 }
-.left {
+.bar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
 }
-.brand {
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.2px;
+.stage {
+  flex: 1;
+  position: relative;
+  min-height: 0;
 }
-.right { display: flex; gap: 4px; }
-.tool-btn {
+.f-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -265,13 +261,13 @@ onUnmounted(() => {
   font-weight: 500;
   cursor: pointer;
   height: 26px;
-  padding: 0 11px;
-  border-radius: var(--radius-pill);
+  padding: 0 10px;
+  border-radius: 8px;
   line-height: 1;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.tool-btn:hover { background: var(--tool-btn-hover); }
-.tool-btn.active { background: var(--accent); color: #fff; }
+.f-btn:hover { background: var(--tool-btn-hover); }
+.f-btn.active { background: var(--accent); color: #fff; }
 .tool-dot {
   width: 6px;
   height: 6px;
@@ -311,11 +307,6 @@ onUnmounted(() => {
 .cap-btn:active { background: var(--hover-strong); }
 .cap-btn.close:hover { background: var(--err); color: #fff; }
 .cap-btn.close:active { background: #be1c2a; color: #fff; }
-.stage {
-  flex: 1;
-  position: relative;
-  min-height: 0;
-}
 .frame {
   position: absolute;
   inset: 0;

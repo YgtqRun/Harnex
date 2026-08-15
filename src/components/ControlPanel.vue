@@ -57,17 +57,14 @@ const emit = defineEmits<{
 <style scoped>
 .panel {
   position: absolute;
-  top: 8px;
-  right: 12px;
-  width: 420px;
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 16px);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
   display: flex;
   flex-direction: column;
   background: var(--panel);
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+  border-left: 1px solid var(--border);
   z-index: 20;
 }
 .head {
