@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Harnex</title>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #12141a;
+        color: #d8dce4;
+        font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      .card {
+        text-align: center;
+      }
+      h1 {
+        font-size: 22px;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      p {
+        color: #8b92a5;
+      }
+      .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #f5b301;
+        animation: blink 1.2s infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0.25;
+        }
+      }
+      a {
+        color: #6ea8ff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1><span class="dot"></span>Harnex</h1>
+      <p>正在等待 DeepSeek Harness 启动…</p>
+      <p>
+        <a href="http://127.0.0.1:3080">若已就绪，点击前往 http://127.0.0.1:3080</a>
+      </p>
+    </div>
+  </body>
+</html>
