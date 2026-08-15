@@ -7,17 +7,28 @@ const props = defineProps<{
   config: AppConfig | null;
 }>();
 
-const LABELS: Record<string, { text: string; cls: string }> = {
-  running: { text: "运行中", cls: "ok" },
-  starting: { text: "启动中", cls: "busy" },
-  stopped: { text: "已停止", cls: "off" },
-  portBusy: { text: "端口被占", cls: "warn" },
-  error: { text: "异常", cls: "err" },
+const LABELS: Record<string, string> = {
+  running: "运行中",
+  starting: "启动中",
+  stopped: "已停止",
+  portBusy: "端口被占",
+  error: "异常",
 };
 
 const label = computed(
-  () => LABELS[props.status?.kind ?? "stopped"] ?? LABELS.stopped,
+  () => LABELS[props.status?.kind ?? "stopped"] ?? "已停止",
 );
+const cls = computed(
+  () =>
+    ({
+      running: "ok",
+      starting: "busy",
+      stopped: "off",
+      portBusy: "warn",
+      error: "err",
+    })[props.status?.kind ?? "stopped"] ?? "off",
+);
+
 const uptime = ref("");
 const logOpen = ref(false);
 const logLines = ref<string[]>([]);
@@ -64,107 +75,102 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="card">
-    <div class="row head">
-      <span class="dot" :class="label.cls"></span>
-      <span class="state">{{ label.text }}</span>
-      <span v-if="status?.message" class="msg">{{ status.message }}</span>
+  <div class="status">
+    <div class="status-main">
+      <span class="dot" :class="cls"></span>
+      <span class="name">{{ label }}</span>
+      <span v-if="status?.message" class="msg" :class="{ warn: status?.kind === 'portBusy' || status?.kind === 'error' }">
+        {{ status.message }}
+      </span>
     </div>
-    <div class="stats">
-      <div class="stat">
-        <span class="k">端口</span>
-        <span class="v">{{ status?.port ?? config?.port ?? 3080 }}</span>
-      </div>
-      <div class="stat">
-        <span class="k">PID</span>
-        <span class="v">{{ status?.pid ?? "—" }}</span>
-      </div>
-      <div class="stat">
-        <span class="k">版本</span>
-        <span class="v">{{ status?.version ?? "—" }}</span>
-      </div>
-      <div class="stat">
-        <span class="k">已运行</span>
-        <span class="v">{{ uptime || "—" }}</span>
-      </div>
+    <div class="meta">
+      <span v-if="uptime" class="meta-item">{{ uptime }}</span>
+      <span class="meta-item">端口 {{ status?.port ?? config?.port ?? 3080 }}</span>
+      <span v-if="status?.pid" class="meta-item">PID {{ status.pid }}</span>
+      <button class="link" @click="toggleLog">{{ logOpen ? "收起日志" : "日志" }}</button>
     </div>
-    <button class="link-btn" @click="toggleLog">
-      {{ logOpen ? "收起启动日志" : "查看启动日志" }}
-    </button>
     <div v-if="logOpen" class="log">
       <div v-for="(line, i) in logLines" :key="i" class="log-line">{{ line }}</div>
       <div v-if="logLines.length === 0" class="log-empty">暂无日志</div>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
+.status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--border);
 }
-.row {
+.status-main {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex: none;
 }
-.dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.dot.ok { background: var(--ok); }
 .dot.busy { background: var(--warn); animation: blink 1s infinite; }
-.dot.off { background: #555d6e; }
+.dot.off { background: var(--dot-off); }
 .dot.warn { background: var(--warn); }
 .dot.err { background: var(--err); }
 @keyframes blink { 50% { opacity: 0.25; } }
-.state { font-weight: 600; }
-.msg { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 12px;
+.name {
+  font-size: 13px;
+  font-weight: 600;
 }
-.stat {
-  background: var(--panel-2);
-  border-radius: 8px;
-  padding: 8px;
+.msg {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.msg.warn { color: var(--err); }
+.meta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11px;
+  padding-left: 16px;
 }
-.k { color: var(--muted); font-size: 11px; }
-.v { font-family: Consolas, monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.link-btn {
+.meta-item {
+  font-variant-numeric: tabular-nums;
+}
+.link {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--muted);
   cursor: pointer;
-  padding: 6px 0 0;
-  font-size: 12px;
+  font-size: 11px;
+  padding: 0;
+  margin-left: auto;
 }
+.link:hover { color: var(--text); }
 .log {
-  margin-top: 8px;
-  background: #0d0f14;
+  margin-top: 2px;
+  background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px;
-  max-height: 130px;
+  max-height: 140px;
   overflow-y: auto;
 }
 .log-line {
-  font-family: Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: #aab2c2;
+  color: var(--muted);
   white-space: pre-wrap;
   word-break: break-all;
-  line-height: 1.45;
+  line-height: 1.5;
 }
-.log-empty { color: var(--muted); font-size: 12px; }
+.log-empty { color: var(--faint); font-size: 11px; }
 </style>

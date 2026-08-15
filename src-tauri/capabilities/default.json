@@ -1,11 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "control",
-  "description": "Harnex 控制浮窗（窗口B）白名单权限；窗口A 不授予任何 IPC 权限",
-  "windows": ["control"],
+  "identifier": "shell",
+  "description": "Harnex 主窗口（一体化外壳）权限；DSH 页面在 iframe 内，无 IPC",
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-hide",
+    "core:window:allow-show",
     "dialog:default"
   ]
 }

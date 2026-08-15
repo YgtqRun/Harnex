@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod process;
+mod theme;
 mod term;
 
 use std::sync::Mutex;
@@ -9,21 +10,20 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, RunEvent, WindowEvent,
+    AppHandle, Emitter, Manager, RunEvent, WindowEvent,
 };
 
 use process::DshState;
 use term::TermState;
 
-fn toggle_control(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("control") {
-        if window.is_visible().unwrap_or(false) {
-            let _ = window.hide();
-        } else {
+fn toggle_panel(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        if !window.is_visible().unwrap_or(false) {
             let _ = window.show();
             let _ = window.set_focus();
         }
     }
+    let _ = app.emit("toggle-control-panel", ());
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -51,7 +51,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "toggle-control" => toggle_control(app),
+            "toggle-control" => toggle_panel(app),
             "start-dsh" => {
                 let _ = process::start_dsh(app);
             }
@@ -68,7 +68,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
                 ..
             } = event
             {
-                toggle_control(tray.app_handle());
+                toggle_panel(tray.app_handle());
             }
         })
         .build(app)?;
@@ -94,13 +94,10 @@ pub fn run() {
             commands::open_native_cmd,
             commands::get_work_dir,
             commands::set_work_dir,
-            commands::show_control,
-            commands::hide_control,
-            commands::show_main,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" || window.label() == "control" {
+                if window.label() == "main" {
                     api.prevent_close();
                     let _ = window.hide();
                 }
@@ -116,6 +113,7 @@ pub fn run() {
                 std::thread::sleep(Duration::from_millis(800));
                 let _ = process::start_dsh(&app2);
             });
+            theme::spawn_theme_watcher(app.handle().clone());
             Ok(())
         })
         .build(tauri::generate_context!())

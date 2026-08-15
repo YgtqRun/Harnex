@@ -28,41 +28,55 @@ async function act(action: "start" | "stop" | "restart") {
 </script>
 
 <template>
-  <section class="btns">
-    <button class="btn start" :disabled="!canStart || !!pending" @click="act('start')">
+  <div class="row">
+    <button class="btn ghost" :disabled="!canStart || !!pending" @click="act('start')">
       {{ pending === "start" ? "启动中…" : "启动" }}
     </button>
-    <button class="btn restart" :disabled="!canRestart || !!pending" @click="act('restart')">
+    <button class="btn primary" :disabled="!canRestart || !!pending" @click="act('restart')">
       {{ pending === "restart" ? "重启中…" : "重启" }}
     </button>
-    <button class="btn stop" :disabled="!canStop || !!pending" @click="act('stop')">
-      {{ pending === "stop" ? "关闭中…" : "关闭" }}
+    <button class="btn ghost danger" :disabled="!canStop || !!pending" @click="act('stop')">
+      {{ pending === "stop" ? "关闭中…" : "停止" }}
     </button>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.btns {
+.row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1.2fr 1fr;
   gap: 8px;
 }
 .btn {
-  border: none;
   border-radius: 8px;
-  padding: 9px 0;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 7px 0;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  color: #fff;
-  transition: filter 0.15s;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.btn:not(:disabled):hover { filter: brightness(1.12); }
-.start { background: #1f8a5d; }
-.restart { background: #9a6b12; }
-.stop { background: #b23a38; }
+.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--hover-soft);
+  border-color: var(--border-strong);
+}
+.ghost.danger { color: var(--err); }
+.ghost.danger:hover:not(:disabled) {
+  background: rgba(237, 53, 68, 0.08);
+  border-color: var(--err);
+}
+.primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+.primary:hover:not(:disabled) { background: var(--accent-hover); }
 </style>

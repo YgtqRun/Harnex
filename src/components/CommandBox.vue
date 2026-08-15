@@ -78,8 +78,7 @@ function onKey(e: KeyboardEvent) {
     e.preventDefault();
     if (historyIdx.value < 0) return;
     historyIdx.value -= 1;
-    input.value =
-      historyIdx.value >= 0 ? recent.value[historyIdx.value] : "";
+    input.value = historyIdx.value >= 0 ? recent.value[historyIdx.value] : "";
   }
 }
 
@@ -107,11 +106,7 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
 </script>
 
 <template>
-  <section class="box">
-    <div class="bar">
-      <span class="title">命令框</span>
-      <span class="hint">交互式命令请用原生 cmd</span>
-    </div>
+  <div class="term">
     <div class="input-row">
       <input
         v-model="input"
@@ -123,8 +118,10 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
         @focus="hintsOpen = true"
         @blur="blurSoon"
       />
-      <button class="mini run" :disabled="running" @click="run">运行</button>
-      <button class="mini stop" :disabled="!running" @click="stop">停止</button>
+      <button class="run" :disabled="running" @click="run">
+        {{ running ? "执行中…" : "运行" }}
+      </button>
+      <button v-if="running" class="stop" @click="stop">停止</button>
     </div>
     <div v-if="hintsOpen && recent.length" class="hints">
       <div
@@ -140,34 +137,23 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
 <template v-for="(line, i) in output" :key="i"><span :class="line.stream">{{ line.text }}</span>
 </template></pre>
     <div class="foot">
-      <span v-if="lastCode !== null" class="code">退出码 {{ lastCode }}</span>
-      <span v-else class="code muted">—</span>
-      <div class="foot-actions">
-        <button class="link" @click="openNative">在原生 cmd 中打开</button>
-        <button class="link" @click="clearOut">清空</button>
-      </div>
+      <button class="link" @click="openNative">原生 cmd</button>
+      <span class="code">{{ lastCode !== null ? `退出码 ${lastCode}` : "—" }}</span>
+      <button class="link" @click="clearOut">清空</button>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.box {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
+.term {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.bar {
+.input-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 6px;
 }
-.title { font-weight: 600; }
-.hint { color: var(--muted); font-size: 11px; }
-.input-row { display: flex; gap: 6px; }
 .cmd-input {
   flex: 1;
   min-width: 0;
@@ -175,22 +161,30 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
-  padding: 7px 9px;
+  padding: 7px 10px;
   font-size: 12px;
+  font-family: var(--font-mono);
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.cmd-input:focus { border-color: var(--accent); }
-.mini {
+.cmd-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.run,
+.stop {
   border: none;
   border-radius: 8px;
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   color: #fff;
 }
-.mini:disabled { opacity: 0.4; cursor: not-allowed; }
 .run { background: var(--accent); }
-.stop { background: #b23a38; }
+.run:hover:not(:disabled) { background: var(--accent-hover); }
+.run:disabled { opacity: 0.5; cursor: not-allowed; }
+.stop { background: var(--err); }
 .hints {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -199,46 +193,51 @@ onUnmounted(() => unlisteners.forEach((u) => u()));
   overflow-y: auto;
 }
 .hint-item {
-  padding: 6px 9px;
-  font-family: Consolas, monospace;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
   font-size: 12px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hint-item:hover { background: #2a3040; }
+.hint-item:hover { background: var(--hover-soft); }
 .output {
   margin: 0;
-  background: #0d0f14;
+  background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px;
+  padding: 8px 10px;
   height: 170px;
   overflow-y: auto;
-  font-family: Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-all;
 }
-.output :deep(.out) { color: #c8d3e5; }
-.output :deep(.err) { color: #ff8a86; }
-.output :deep(.info) { color: #8b92a5; }
+.output :deep(.out) { color: var(--text); }
+.output :deep(.err) { color: var(--err-hover); }
+.output :deep(.info) { color: var(--faint); }
 .foot {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  color: var(--faint);
+  font-size: 11px;
 }
-.code { font-family: Consolas, monospace; font-size: 11px; }
-.muted { color: var(--muted); }
-.foot-actions { display: flex; gap: 10px; }
+.code {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
 .link {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   padding: 0;
 }
+.link:first-child { margin-right: auto; }
+.link:hover { color: var(--text); }
 </style>

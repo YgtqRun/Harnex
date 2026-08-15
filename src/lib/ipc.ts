@@ -42,6 +42,10 @@ export interface DshLog {
   text: string;
 }
 
+export interface DshTheme {
+  preference: "system" | "light" | "dark" | string;
+}
+
 export const api = {
   getConfig: () => invoke<AppConfig>("get_config"),
   setConfig: (cfg: AppConfig) => invoke<AppConfig>("set_config", { cfg }),
@@ -56,9 +60,6 @@ export const api = {
     invoke<void>("open_native_cmd", { command: command ?? null }),
   getWorkDir: () => invoke<string>("get_work_dir"),
   setWorkDir: (path: string) => invoke<AppConfig>("set_work_dir", { path }),
-  showControl: () => invoke<void>("show_control"),
-  hideControl: () => invoke<void>("hide_control"),
-  showMain: () => invoke<void>("show_main"),
 };
 
 export function onStatus(cb: (s: DshStatus) => void): Promise<UnlistenFn> {
@@ -79,4 +80,12 @@ export function onTermExit(cb: (t: TermExit) => void): Promise<UnlistenFn> {
 
 export function onDshLog(cb: (l: DshLog) => void): Promise<UnlistenFn> {
   return listen<DshLog>("dsh-log", (e) => cb(e.payload));
+}
+
+export function onToggleControlPanel(cb: () => void): Promise<UnlistenFn> {
+  return listen("toggle-control-panel", () => cb());
+}
+
+export function onDshTheme(cb: (t: DshTheme) => void): Promise<UnlistenFn> {
+  return listen<DshTheme>("dsh-theme", (e) => cb(e.payload));
 }

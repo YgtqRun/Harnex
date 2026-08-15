@@ -54,9 +54,10 @@ async function save() {
 </script>
 
 <template>
-  <section class="panel">
+  <div class="settings">
     <button class="toggle" @click="open = !open">
-      {{ open ? "收起设置" : "设置" }}
+      <span>{{ open ? "收起设置" : "设置" }}</span>
+      <span class="chevron" :class="{ open }">▾</span>
     </button>
     <div v-if="open" class="form">
       <label class="field">
@@ -71,7 +72,7 @@ async function save() {
         <span>共享工作目录</span>
         <div class="dir-row">
           <input v-model="form.workDir" placeholder="默认用户主目录" />
-          <button class="mini" @click="pickDir">选择</button>
+          <button class="pick" @click="pickDir">选择</button>
         </div>
       </label>
       <label class="field">
@@ -85,24 +86,45 @@ async function save() {
       <button class="save" :disabled="saving" @click="save">
         {{ saving ? "保存中…" : "保存" }}
       </button>
-      <p class="tip">改端口后需重启 DSH 才生效；命令框与原生 cmd 共享工作目录与环境变量。</p>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+.settings {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
 .toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   padding: 0;
 }
 .toggle:hover { color: var(--text); }
-.form { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.chevron {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.chevron.open { transform: rotate(180deg); }
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
 .field input {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -112,19 +134,31 @@ async function save() {
   font-size: 12px;
   outline: none;
   width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.field input:focus { border-color: var(--accent); }
+.field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
 .dir-row { display: flex; gap: 6px; }
 .dir-row input { flex: 1; min-width: 0; }
-.mini {
+.pick {
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
   cursor: pointer;
   padding: 0 10px;
+  font-size: 11px;
 }
-.check { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.pick:hover { border-color: var(--border-strong); }
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.check input { accent-color: var(--accent); }
 .save {
   background: var(--accent);
   border: none;
@@ -132,8 +166,9 @@ async function save() {
   color: #fff;
   padding: 8px 0;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
+  font-size: 12px;
 }
+.save:hover:not(:disabled) { background: var(--accent-hover); }
 .save:disabled { opacity: 0.5; cursor: not-allowed; }
-.tip { color: var(--muted); font-size: 11px; margin: 0; line-height: 1.5; }
 </style>

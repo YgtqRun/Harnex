@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 use crate::config::{self, AppConfig};
 use crate::process::{self, DshStatus};
@@ -72,31 +72,4 @@ pub fn set_work_dir(app: AppHandle, path: String) -> Result<AppConfig, String> {
     config::save(&app, &cfg)?;
     let _ = app.emit("config-changed", &cfg);
     Ok(cfg)
-}
-
-#[tauri::command]
-pub fn show_control(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("control") {
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn hide_control(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("control") {
-        window.hide().map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn show_main(app: AppHandle) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
-    }
-    process::sync_main_window(&app);
-    Ok(())
 }

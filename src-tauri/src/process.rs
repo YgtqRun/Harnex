@@ -7,7 +7,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager, Url};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(not(windows))]
 use std::os::unix::process::CommandExt;
@@ -71,44 +71,6 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
-}
-
-/// 窗口A 的占位页 URL（dev 走 Vite，生产走 Tauri 协议）。
-fn placeholder_url(app: &AppHandle) -> String {
-    match &app.config().build.dev_url {
-        Some(dev) => {
-            let base = dev.as_str().trim_end_matches('/');
-            format!("{base}/placeholder.html")
-        }
-        None => "tauri://localhost/placeholder.html".to_string(),
-    }
-}
-
-fn dsh_url(port: u16) -> String {
-    format!("http://127.0.0.1:{port}")
-}
-
-/// 让窗口A 跟随 DSH 状态：运行中加载 DSH 页面，否则显示占位页。
-pub fn sync_main_window(app: &AppHandle) {
-    let kind = app.state::<Mutex<DshState>>().lock().unwrap().kind.clone();
-    let port = config::load(app).port;
-    let target = if kind == STATUS_RUNNING {
-        dsh_url(port)
-    } else {
-        placeholder_url(app)
-    };
-    if let Some(window) = app.get_webview_window("main") {
-        let Ok(url) = Url::parse(&target) else {
-            return;
-        };
-        // 已在目标地址时跳过导航，避免每 3 秒轮询触发整页重载
-        match window.url() {
-            Ok(current) if current == url => return,
-            _ => {
-                let _ = window.navigate(url);
-            }
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -300,7 +262,6 @@ pub fn refresh_status(app: &AppHandle) -> DshStatus {
         }
     }
     emit_status(app);
-    sync_main_window(app);
     status_of(app, port)
 }
 
@@ -402,7 +363,6 @@ fn spawn_dsh_watcher(app: AppHandle, port: u16) {
                 Probe::Healthy => {
                     set_kind(&app, STATUS_RUNNING, None);
                     emit_status(&app);
-                    sync_main_window(&app);
                     spawn_version_fetch(&app);
                     break;
                 }
@@ -423,14 +383,12 @@ fn spawn_dsh_watcher(app: AppHandle, port: u16) {
                             Some("进程已退出，请查看日志".to_string()),
                         );
                         emit_status(&app);
-                        sync_main_window(&app);
                         break;
                     }
                     if Instant::now() > deadline {
                         push_log(&app, "启动超时，正在终止…".to_string());
                         stop_dsh_inner(&app, Some("启动超时"));
                         emit_status(&app);
-                        sync_main_window(&app);
                         break;
                     }
                 }
@@ -550,14 +508,12 @@ pub fn stop_dsh(app: &AppHandle) -> Result<DshStatus, String> {
     let port = config::load(app).port;
     stop_dsh_inner(app, None);
     emit_status(app);
-    sync_main_window(app);
     Ok(status_of(app, port))
 }
 
 pub fn restart_dsh(app: &AppHandle) -> Result<DshStatus, String> {
     stop_dsh_inner(app, Some("正在重启…"));
     emit_status(app);
-    sync_main_window(app);
     start_dsh(app)
 }
 
